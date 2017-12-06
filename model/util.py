@@ -222,6 +222,7 @@ async def delete_item(ctx, item):
     prompt, tidy = await req(prompt, "...", tidy=tidy)
     await req(prompt, st.INF_ITEM_DELETED, tidy=tidy)
 
+
 async def vote_on(ctx, item):
     """A function to increase the vote count on an item."""
     # Check and get item data.
@@ -230,13 +231,16 @@ async def vote_on(ctx, item):
         return await TidyMessage.build(ctx, st.ERR_ITEM_NONEXIST, mode=TidyMode.STANDARD)
     i_json = get_item_json(item)
 
-    if ctx.message.author.name not in i_json[st.F_VOTERS]:
+    if ctx.message.author.name not in i_json[st.F_VOTERS] and ctx.message.author.id != i_json[st.F_OWNER]:
         # If they haven't voted yet, let them vote.
         i_json[st.F_VOTERS].append(ctx.message.author.name)
         store_item(i_json)
 
         # Return a TM informing them the duty is done.
         await TidyMessage.build(ctx, st.INF_VOTED.format(i_json[st.F_TITLE]), mode=TidyMode.STANDARD)
+    elif ctx.message.author.id == i_json[st.F_OWNER]:
+        # If they have the moxie to vote for their own item...
+        await TidyMessage.build(ctx, st.ERR_CANT_VOTE_YOU_OWN, mode=TidyMode.WARNING)
     else:
         # Otherwise, return an error.
         await TidyMessage.build(ctx, st.ERR_ALREADY_VOTED, mode=TidyMode.WARNING)

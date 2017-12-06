@@ -104,6 +104,9 @@ ERR_INVALID_TIDYMODE = "Mr. Programmer, it looks like you gave me a TidyMode I d
                        "now, Mr. Programmer. After all, you wrote this error code."
 ERR_EDIT_WHAT = "Observer... edit what item... >...<"
 ERR_EDIT_WHAT = "Observer... delete what now... >...<"
+ERR_CANT_VOTE_YOU_OWN = "Sir or ma'am... isn't voting for your own idea... kind of redundant? Like... didn't you " \
+                        "make it because you wanted it? I mean, this is a serious question, Observer. But really. " \
+                        "No. I'm not letting you vote on your own item."
 ERR_NO_ARG_EDIT = "Umm... edit... what?"
 ERR_ALREADY_VOTED = "I understand you're excited, sir or ma'am, but if you could refrain from voting for an item " \
                     "twice, I would greatly appreciate it!!"
