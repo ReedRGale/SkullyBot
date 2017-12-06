@@ -8,15 +8,16 @@ from model import util
 # Help Messages #
 
 
+HP_BRIEF = "Try calling 'skully, help [command]'! Also, if you ever want to escape a command early, " \
+           "type 'nevermind, skully'."
+HP_HELP = "Good work. That is exactly how you check the detailed help docs of a command."
+
+
 NI_BRIEF = "'NewItem' is how you should add a new item to the list of items we might try to combine!"
 NI_HELP = "To Call: 'skully, newitem'\n\n" \
           "Call anywhere within the server to record a value. Basically, sir or ma'am, I'll ask you for something " \
           "you want to call this potential item, then I'll ask for its description so that I can keep it in " \
           "my memory for safekeeping. I'll be your virtual 'inventory' so to speak! ^...^"
-
-HP_BRIEF = "Try calling 'skully, help [command]'! Also, if you ever want to escape a command early, " \
-           "type 'nevermind, skully'."
-HP_HELP = "Good work. That is exactly how you check the detailed help docs of a command."
 
 IS_BRIEF = "'Items' is how you can ask for either all the items I have or, all the details on one specific item!"
 IS_HELP = "To Call: 'skully, items' OR 'skully, items [item]'\n\n" \
@@ -35,6 +36,11 @@ VE_HELP = "To Call: 'skully, vote [item]'\n\n" \
           "please only vote once. The goal of this is to know what item ideas are most popular, after all!! " \
           ">...<"
 
+DE_BRIEF = "'Delete' is how you tell me to *gasp* remove items!!!"
+DE_HELP = "To Call: 'skully, delete [item]'\n\n" \
+          "Call anywhere within the server to delete an item you own!! Just, uh, be careful. Deleted items are " \
+          "gone... forever!!"
+
 
 # Informative #
 
@@ -42,6 +48,8 @@ VE_HELP = "To Call: 'skully, vote [item]'\n\n" \
 INF_ITEM_ADDED = "Item stored away! If you ever want to look at it again, just call 'skully, items {}'. ^...^"
 INF_EXIT_EDIT = "Whew. Glad we didn't do that then! Poke me again if you want to edit it though."
 INF_VOTED = "Aaaand your vote is tallied. One step higher in popularity for {}!!"
+INF_EXIT_DELETE = "Hah... you scared me for a moment, Observer!! Trust me, this item is safe with me!"
+INF_ITEM_DELETED = "Its... it's gone now..."
 
 
 REPEAT_ITEM = "Alright then! Let's try working through this again! As many times as it takes! >...<"
@@ -54,6 +62,7 @@ REPEAT_CONF = "I'm sorry, I didn't quite catch that!"
 ASK_ITEM_ACCEPTABLE = "So, how does this look? Is it acceptable?"
 ASK_VOTE_ACCEPTABLE = "Um, if you edit this, you might change how others see it. I'll have to, um, delete its " \
                       "votes. Is that... okay? >...<"
+ASK_DELETE_ACCEPTABLE = "Are you... sure you want to delete this...? ;...;"
 
 
 # Requests #
@@ -89,11 +98,12 @@ ERR_EXTRA_ARGS = "Sorry sir, or ma'am. That's just a few too many arguments. I k
                  "try again with that?"
 ERR_NONUNIQUE = "Um, an item with that name already exists? Sorry!! Could you rename it quickly?"
 ERR_ITEM_NONEXIST = "Apologies, sir or ma'am! That item doesn't look like it exists!!"
-ERR_NOT_YOURS = "Hey!!! This isn't yours! You can't edit it!"
+ERR_NOT_YOURS = "Hey! This isn't yours!!!"
 ERR_INVALID_TIDYMODE = "Mr. Programmer, it looks like you gave me a TidyMode I don't know how to work with. " \
                        "And now, some user is probably going 'huh? what's that?' You only have yourself to blame " \
                        "now, Mr. Programmer. After all, you wrote this error code."
-ERR_COMMAND_NONEXIST = "Observer... that command doesn't exist... >...<"
+ERR_EDIT_WHAT = "Observer... edit what item... >...<"
+ERR_EDIT_WHAT = "Observer... delete what now... >...<"
 ERR_NO_ARG_EDIT = "Umm... edit... what?"
 ERR_ALREADY_VOTED = "I understand you're excited, sir or ma'am, but if you could refrain from voting for an item " \
                     "twice, I would greatly appreciate it!!"

@@ -101,7 +101,7 @@ async def get_items(ctx):
     all_names, names, votes = "Here are all the items I have in my inventory! \n\n", list(), list()
 
     for key in i_names:
-        names.append("~ " + i_json[key][st.F_TITLE] + '\n' +
+        names.append("~ **" + i_json[key][st.F_TITLE] + '**\n' +
                      "> Votes: " + str(len(i_json[key][st.F_VOTERS])) + '\n')
         votes.append(len(i_json[key][st.F_VOTERS]))
 
@@ -148,7 +148,7 @@ async def edit_item(ctx, item):
 
     # Check to make sure the editor is the creator
     item = get_item_json(item)
-    if ctx.message.author.name != item[st.F_OWNER]:
+    if ctx.message.author.id != item[st.F_OWNER]:
         return await TidyMessage.build(ctx, st.ERR_NOT_YOURS, mode=TidyMode.WARNING)
 
     # Check to make sure they're okay losing votes.
@@ -182,6 +182,45 @@ async def edit_item(ctx, item):
     if len(os.listdir(items_dir)) > len(i_names):
         os.remove(items_dir + "\\" + item)
 
+
+async def delete_item(ctx, item):
+    """Function to delete an existing item."""
+    # Make sure the item exists.
+    item = check_item(item)
+    if not item:
+        return await TidyMessage.build(ctx, st.ERR_ITEM_NONEXIST, mode=TidyMode.WARNING)
+
+    # Check to make sure the editor is the creator
+    item = get_item_json(item)
+    if ctx.message.author.id != item[st.F_OWNER]:
+        return await TidyMessage.build(ctx, st.ERR_NOT_YOURS, mode=TidyMode.WARNING)
+
+    # Check to make sure they're sure about deleting this.
+    unchecked, conf, prompt = True, None, ctx.message
+
+    while unchecked:
+        if conf:
+            conf, tidy = await req(prompt, st.REPEAT_CONF + " " + st.ASK_DELETE_ACCEPTABLE, tidy=tidy)
+        else:
+            conf, tidy = await req(prompt, st.ASK_DELETE_ACCEPTABLE, ctx=ctx)
+        if conf == val.escape:
+            return val.escape
+        prompt = conf
+
+        if conf.content.lower() in alias.AFFIRM:
+            unchecked = False
+        elif conf.content.lower() in alias.DENY:
+            return await TidyMessage.build(ctx, st.INF_EXIT_DELETE, mode=TidyMode.STANDARD)
+
+    # Delete item entry.
+    item_file = "model\\" \
+                + st.ITEMS_FN + "\\" \
+                + item[st.F_TITLE].lower() + ".json"
+    os.remove(item_file)
+
+    # Jankily force some time where Skully laments.
+    prompt, tidy = await req(prompt, "...", tidy=tidy)
+    await req(prompt, st.INF_ITEM_DELETED, tidy=tidy)
 
 async def vote_on(ctx, item):
     """A function to increase the vote count on an item."""

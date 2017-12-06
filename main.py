@@ -19,7 +19,7 @@ async def help_command(ctx, *args):
             try:
                 await TidyMessage.build(ctx, val.bot.get_command(args[0]).help, mode=TidyMode.STANDARD)
             except discord.ext.commands.errors.CommandInvokeError:
-                await TidyMessage.build(ctx, st.ERR_COMMAND_NONEXIST, mode=TidyMode.WARNING)
+                await TidyMessage.build(ctx, st.ERR_EDIT_WHAT, mode=TidyMode.WARNING)
         elif args:
             await TidyMessage.build(ctx, st.ERR_EXTRA_ARGS.format("one"), mode=TidyMode.STANDARD)
         else:  # Otherwise print out all command briefs.
@@ -77,9 +77,19 @@ async def items(ctx, *args):
 async def edit(ctx, *args):
     if not val.calling.get(ctx.message.author.id):
         if not args:
-            await ctx.send(st.ERR_COMMAND_NONEXIST)
+            await TidyMessage.build(ctx, st.ERR_EDIT_WHAT, mode=TidyMode.WARNING)
         else:
             await util.edit_item(ctx, " ".join(args))
+        val.calling[ctx.message.author.id] = False
+
+
+@val.bot.command(name="delete", help=st.DE_HELP, brief=st.DE_BRIEF)
+async def delete(ctx, *args):
+    if not val.calling.get(ctx.message.author.id):
+        if not args:
+            await TidyMessage.build(ctx, st.ERR_EDIT_WHAT, mode=TidyMode.WARNING)
+        else:
+            await util.delete_item(ctx, " ".join(args))
         val.calling[ctx.message.author.id] = False
 
 
