@@ -89,8 +89,8 @@ class TidyMessage:
         elif mode == TidyMode.WARNING:
             err = discord.Embed(title="\n",
                                 description=content,
-                                color=0xc10000)
-            err.set_thumbnail(url="https://image.ibb.co/fvgnxw/chrome_2017_12_02_01_44_59.png")
+                                color=0xc99e3a)
+            err.set_thumbnail(url="https://image.ibb.co/ciiTLG/chrome_2017_12_06_00_39_54.png")
             err.set_author(name=self.ctx.bot.user.name,
                            url="https://www.pivotaltracker.com/n/projects/2133511",
                            icon_url="https://image.ibb.co/nhRWPb/chrome_2017_12_05_22_29_14.png")

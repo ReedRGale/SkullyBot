@@ -97,11 +97,29 @@ async def get_items(ctx):
         with open(items_dir + "\\" + i, "r") as fout:
             i_json[i] = json.load(fout)
 
-    # Concatenate all names.
+    # Prepare fields.
     all_names, names, votes = "Here are all the items I have in my inventory! \n\n", list(), list()
 
     for key in i_names:
-        names.append('~ ' + i_json[key][st.F_TITLE] + '\n')
+        names.append("~ " + i_json[key][st.F_TITLE] + '\n' +
+                     "> Votes: " + str(len(i_json[key][st.F_VOTERS])) + '\n')
+        votes.append(len(i_json[key][st.F_VOTERS]))
+
+    # Sort names by vote.
+    for _ in range(len(names)):
+        for i in range(len(names)):
+            if i != 0 and votes[i] > votes[i - 1]:
+                bubble = votes[i]
+                votes[i] = votes[i - 1]
+                votes[i - 1] = bubble
+
+                bubble = names[i]
+                names[i] = names[i - 1]
+                names[i - 1] = bubble
+
+    # Concatenate all names.
+    for i in range(len(names)):
+        all_names += names[i]
 
     # Print in a tidy message.
     await TidyMessage.build(ctx, all_names, mode=TidyMode.STANDARD)
