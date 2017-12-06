@@ -79,7 +79,7 @@ F_VOTERS = "voters"     # The voters for this item
 F_COMP = "components"   # The base items that are suggested to make this item
 F_ATTR = "attributes"   # Traits this item has inherited from basic items
 F_CANON = "canon"       # Whether this item is in the canon or not
-F_PROOFED = "proofed"   # Whether this item has been checked be someone official or not
+F_PROOFED = "proofed"   # Whether this item has been checked by someone official or not
 
 
 # Errors #

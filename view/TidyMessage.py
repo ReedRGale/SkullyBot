@@ -80,7 +80,7 @@ class TidyMessage:
         if mode == TidyMode.STANDARD:
             std = discord.Embed(title="\n",
                                 description=content,
-                                color=0x00d700)
+                                color=0xF2D40F)
             std.set_thumbnail(url="https://image.ibb.co/fvgnxw/chrome_2017_12_02_01_44_59.png")
             std.set_author(name=self.ctx.bot.user.name,
                            url="https://www.pivotaltracker.com/n/projects/2133511",

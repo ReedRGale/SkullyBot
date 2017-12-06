@@ -98,10 +98,10 @@ async def get_items(ctx):
             i_json[i] = json.load(fout)
 
     # Concatenate all names.
-    all_names = "Here are all the items I have in my inventory! \n\n"
+    all_names, names, votes = "Here are all the items I have in my inventory! \n\n", list(), list()
 
     for key in i_names:
-        all_names += '~ ' + i_json[key][st.F_TITLE] + '\n'
+        names.append('~ ' + i_json[key][st.F_TITLE] + '\n')
 
     # Print in a tidy message.
     await TidyMessage.build(ctx, all_names, mode=TidyMode.STANDARD)
