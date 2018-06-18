@@ -134,11 +134,16 @@ ERR_NOT_YOURS = "Hey! This isn't yours!!!"
 ERR_INVALID_TIDYMODE = "Mr. Programmer, it looks like you gave me a TidyMode I don't know how to work with. " \
                        "And now, some user is probably going 'huh? what's that?' You only have yourself to blame " \
                        "now, Mr. Programmer. After all, you wrote this error code."
+<<<<<<< HEAD
 ERR_EDIT_WHAT = "Observer... edit what item...? >...<"
 ERR_DELETE_WHAT = "Observer... delete what now...? >...<"
 ERR_CANT_VOTE_YOU_OWN = "Sir or ma'am... isn't voting for your own idea... kind of redundant? Like... didn't you " \
                         "make it because you wanted it? I mean, this is a serious question, Observer. But really. " \
                         "No. I'm not letting you vote on your own item."
+=======
+ERR_EDIT_WHAT = "Observer... edit what item... >...<"
+ERR_EDIT_WHAT = "Observer... delete what now... >...<"
+>>>>>>> parent of 02eae38... Check to make sure people don't vote for their own item.
 ERR_NO_ARG_EDIT = "Umm... edit... what?"
 ERR_ALREADY_VOTED = "I understand you're excited, sir or ma'am, but if you could refrain from voting for an item " \
                     "twice, I would greatly appreciate it!!"
