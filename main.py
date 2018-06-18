@@ -55,11 +55,11 @@ async def new_item(ctx):
         val.calling[ctx.message.author.id] = False
 
 
-@val.bot.command(name="voteitem", help=st.VI_HELP, brief=st.VI_BRIEF)
-async def vote_item(ctx, *args):
+@val.bot.command(name="vote", help=st.VE_HELP, brief=st.VE_BRIEF)
+async def vote(ctx, *args):
     """Makes a new canon, including folders and player prefs."""
     if not val.calling.get(ctx.message.author.id):
-        await util.vote_item(ctx, " ".join(args))
+        await util.vote_on(ctx, " ".join(args))
         val.calling[ctx.message.author.id] = False
 
 
@@ -73,8 +73,8 @@ async def items(ctx, *args):
         val.calling[ctx.message.author.id] = False
 
 
-@val.bot.command(name="edititem", help=st.EI_HELP, brief=st.EI_BRIEF)
-async def edit_item(ctx, *args):
+@val.bot.command(name="edit", help=st.ET_HELP, brief=st.ET_BRIEF)
+async def edit(ctx, *args):
     if not val.calling.get(ctx.message.author.id):
         if not args:
             await TidyMessage.build(ctx, st.ERR_EDIT_WHAT, mode=TidyMode.WARNING)
@@ -83,59 +83,13 @@ async def edit_item(ctx, *args):
         val.calling[ctx.message.author.id] = False
 
 
-@val.bot.command(name="deleteitem", help=st.DI_HELP, brief=st.DI_BRIEF)
-async def delete_item(ctx, *args):
-    if not val.calling.get(ctx.message.author.id):
-        if not args:
-            await TidyMessage.build(ctx, st.ERR_DELETE_WHAT, mode=TidyMode.WARNING)
-        else:
-            await util.delete_item(ctx, " ".join(args))
-        val.calling[ctx.message.author.id] = False
-
-
-@val.bot.command(name="newrecipe", help=st.NR_HELP, brief=st.NR_BRIEF)
-async def new_recipe(ctx):
-    """Makes a new canon, including folders and player prefs."""
-    if not val.calling.get(ctx.message.author.id):
-        await util.new_recipe(ctx, ctx.message)
-        val.calling[ctx.message.author.id] = False
-
-
-@val.bot.command(name="voterecipe", help=st.VR_HELP, brief=st.VR_BRIEF)
-async def vote_recipe(ctx, *args):
-    """Makes a new canon, including folders and player prefs."""
-    if not val.calling.get(ctx.message.author.id):
-        await util.vote_recipe(ctx, " ".join(args))
-        val.calling[ctx.message.author.id] = False
-
-
-@val.bot.command(name="recipes", help=st.RS_HELP, brief=st.RS_BRIEF)
-async def recipes(ctx, *args):
-    if not val.calling.get(ctx.message.author.id):
-        if args:
-            await util.get_recipe(ctx, " ".join(args))
-        else:
-            await util.get_recipes(ctx)
-        val.calling[ctx.message.author.id] = False
-
-
-@val.bot.command(name="editrecipe", help=st.ER_HELP, brief=st.ER_BRIEF)
-async def edit_recipe(ctx, *args):
+@val.bot.command(name="delete", help=st.DE_HELP, brief=st.DE_BRIEF)
+async def delete(ctx, *args):
     if not val.calling.get(ctx.message.author.id):
         if not args:
             await TidyMessage.build(ctx, st.ERR_EDIT_WHAT, mode=TidyMode.WARNING)
         else:
-            await util.edit_recipe(ctx, " ".join(args))
-        val.calling[ctx.message.author.id] = False
-
-
-@val.bot.command(name="delete recipe", help=st.DR_HELP, brief=st.DR_BRIEF)
-async def delete_recipe(ctx, *args):
-    if not val.calling.get(ctx.message.author.id):
-        if not args:
-            await TidyMessage.build(ctx, st.ERR_DELETE_WHAT, mode=TidyMode.WARNING)
-        else:
-            await util.delete_recipe(ctx, " ".join(args))
+            await util.delete_item(ctx, " ".join(args))
         val.calling[ctx.message.author.id] = False
 
 

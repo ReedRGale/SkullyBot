@@ -26,7 +26,7 @@ async def new_item(ctx, prompt, editing=False):
 
         # Ask for item title.
         while nonunique:
-            if not tidy or editing:
+            if not tidy:
                 title, tidy = await req(prompt, st.REQ_TITLE, ctx=ctx)
             else:
                 title, tidy = await req(prompt, ctx_error + " " + st.REQ_TITLE, tidy=tidy)
@@ -55,9 +55,9 @@ async def new_item(ctx, prompt, editing=False):
         # Check if acceptable.
         while unchecked:
             if fin:
-                fin, tidy = await req(prompt, preview + st.REPEAT_CONF + " " + st.ASK_ACCEPTABLE, tidy=tidy)
+                fin, tidy = await req(prompt, preview + st.REPEAT_CONF + " " + st.ASK_ITEM_ACCEPTABLE, tidy=tidy)
             else:
-                fin, tidy = await req(prompt, preview + st.ASK_ACCEPTABLE, tidy=tidy)
+                fin, tidy = await req(prompt, preview + st.ASK_ITEM_ACCEPTABLE, tidy=tidy)
             if fin == val.escape:
                 return val.escape
             prompt = fin
@@ -67,7 +67,7 @@ async def new_item(ctx, prompt, editing=False):
                 unchecked = False
             elif fin.content.lower() in alias.DENY:
                 unchecked = False
-                ctx_error = st.REPEAT_DATA
+                ctx_error = st.REPEAT_ITEM
 
     # Prepare item entry.
     item_json = {st.F_TITLE: title.content,
@@ -76,7 +76,6 @@ async def new_item(ctx, prompt, editing=False):
                  st.F_VOTERS: [],
                  st.F_COMP: {},
                  st.F_ATTR: {},
-                 st.F_GHOST: {},
                  st.F_CANON: False,
                  st.F_PROOFED: False}
 
@@ -131,7 +130,7 @@ async def get_item(ctx, item):
     # Make sure the item exists.
     item = check_item(item)
     if not item:
-        return await TidyMessage.build(ctx, st.ERR_NONEXIST, mode=TidyMode.STANDARD)
+        return await TidyMessage.build(ctx, st.ERR_ITEM_NONEXIST, mode=TidyMode.STANDARD)
 
     # Get item data.
     i_json = get_item_json(item)
@@ -145,7 +144,7 @@ async def edit_item(ctx, item):
     # Make sure the item exists.
     item = check_item(item)
     if not item:
-        return await TidyMessage.build(ctx, st.ERR_NONEXIST, mode=TidyMode.WARNING)
+        return await TidyMessage.build(ctx, st.ERR_ITEM_NONEXIST, mode=TidyMode.WARNING)
 
     # Check to make sure the editor is the creator
     item = get_item_json(item)
@@ -189,7 +188,7 @@ async def delete_item(ctx, item):
     # Make sure the item exists.
     item = check_item(item)
     if not item:
-        return await TidyMessage.build(ctx, st.ERR_NONEXIST, mode=TidyMode.WARNING)
+        return await TidyMessage.build(ctx, st.ERR_ITEM_NONEXIST, mode=TidyMode.WARNING)
 
     # Check to make sure the editor is the creator
     item = get_item_json(item)
@@ -225,6 +224,7 @@ async def delete_item(ctx, item):
 
 <<<<<<< HEAD
 
+<<<<<<< HEAD
 async def new_recipe(ctx, prompt, editing=False):
     """Encapsulator that handles making new recipes."""
     tidy, preview, unacceptable = "", None, True
@@ -435,11 +435,14 @@ async def vote_item(ctx, item):
 =======
 async def vote_on(ctx, item):
 >>>>>>> parent of 02eae38... Check to make sure people don't vote for their own item.
+=======
+async def vote_on(ctx, item):
+>>>>>>> parent of a4ff330... Added rudimentary recipe storing functionality.
     """A function to increase the vote count on an item."""
     # Check and get item data.
     item = check_item(item)
     if not item:
-        return await TidyMessage.build(ctx, st.ERR_NONEXIST, mode=TidyMode.STANDARD)
+        return await TidyMessage.build(ctx, st.ERR_ITEM_NONEXIST, mode=TidyMode.STANDARD)
     i_json = get_item_json(item)
 
     if ctx.message.author.name not in i_json[st.F_VOTERS]:
@@ -449,29 +452,6 @@ async def vote_on(ctx, item):
 
         # Return a TM informing them the duty is done.
         await TidyMessage.build(ctx, st.INF_VOTED.format(i_json[st.F_TITLE]), mode=TidyMode.STANDARD)
-    else:
-        # Otherwise, return an error.
-        await TidyMessage.build(ctx, st.ERR_ALREADY_VOTED, mode=TidyMode.WARNING)
-
-
-async def vote_recipe(ctx, recipe):
-    """A function to increase the vote count on a recipe."""
-    # Check and get item data.
-    recipe = check_recipe(recipe)
-    if not recipe:
-        return await TidyMessage.build(ctx, st.ERR_NONEXIST, mode=TidyMode.STANDARD)
-    r_json = get_recipe_json(recipe)
-
-    if ctx.message.author.name not in r_json[st.F_VOTERS] and ctx.message.author.id != r_json[st.F_OWNER]:
-        # If they haven't voted yet, let them vote.
-        r_json[st.F_VOTERS].append(ctx.message.author.name)
-        store_item(r_json)
-
-        # Return a TM informing them the duty is done.
-        await TidyMessage.build(ctx, st.INF_VOTED.format(r_json[st.F_TITLE]), mode=TidyMode.STANDARD)
-    elif ctx.message.author.id == r_json[st.F_OWNER]:
-        # If they have the moxie to vote for their own item...
-        await TidyMessage.build(ctx, st.ERR_CANT_VOTE_YOU_OWN, mode=TidyMode.WARNING)
     else:
         # Otherwise, return an error.
         await TidyMessage.build(ctx, st.ERR_ALREADY_VOTED, mode=TidyMode.WARNING)
@@ -494,20 +474,6 @@ def get_item_json(item):
     return i_json
 
 
-def get_recipe_json(recipe):
-    """Helper method to get recipe data. Expects .json extension."""
-    # Define the path.
-    r_file = "model\\" \
-             + st.RECIPES_FN + "\\" \
-             + recipe
-
-    # Load in file.
-    with open(r_file, "r") as fout:
-        i_json = json.load(fout)
-
-    return i_json
-
-
 def store_item(item):
     """Helper method to store item data."""
     # Add item entry.
@@ -517,17 +483,6 @@ def store_item(item):
 
     with open(item_file, "w") as fout:
         json.dump(item, fout, indent=1)
-
-
-def store_recipe(recipe):
-    """Helper method to store recipe data."""
-    # Add item entry.
-    item_file = "model\\" \
-                + st.RECIPES_FN + "\\" \
-                + recipe[st.F_TITLE].lower() + ".json"
-
-    with open(item_file, "w") as fout:
-        json.dump(recipe, fout, indent=1)
 
 
 def return_member(ctx, mention="", user_id=""):
@@ -559,21 +514,6 @@ def check_item(item):
     i_names = os.listdir(items_dir)
     for i in i_names:
         if i.lower() == item.lower():
-            return i
-    return False
-
-
-def check_recipe(recipe):
-    """Checks the recipes folder to see if a recipe exists. If it does, returns the recipe name."""
-    # Make sure the item name is properly formatted.
-    items_dir = "model\\" \
-                + st.RECIPES_FN
-    recipe += ".json"
-
-    # Load in file.
-    i_names = os.listdir(items_dir)
-    for i in i_names:
-        if i.lower() == recipe.lower():
             return i
     return False
 
