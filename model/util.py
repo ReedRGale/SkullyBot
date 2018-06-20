@@ -5,6 +5,7 @@
 import asyncio
 import json
 import os
+import errno
 
 from model import val, st, alias
 from view.TidyMessage import TidyMessage
@@ -14,64 +15,49 @@ from model.enums import TidyMode
 # Function Encapsulators #
 
 
-async def new_item(ctx, prompt, editing=False):
+async def add_item(ctx, being_edited=""):
     """Encapsulator that handles making new items."""
-    tidy, preview, unacceptable = "", None, True
-    ctx_error = "NO ERROR"
+    preview, unacceptable, first_run = None, True, True
+    tm = await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, content=st.REQ_TITLE,
+                                 checks=[check_unique(being_edited)], timeout=val.MEDIUM)
+    if comm_ended(tm, ctx):
+        return
+    title = tm.prompt.content
 
     # Loop until acceptable.
     while unacceptable:
-        # Prime the pump.
-        nonunique = True
 
         # Ask for item title.
-        while nonunique:
-            if not tidy:
-                title, tidy = await req(prompt, st.REQ_TITLE, ctx=ctx)
-            else:
-                title, tidy = await req(prompt, ctx_error + " " + st.REQ_TITLE, tidy=tidy)
-            if title == val.escape:
-                return val.escape
-            prompt = title
-
-            # Check for uniqueness.
-            if not check_item(title.content) or editing:
-                nonunique = False
-            else:
-                ctx_error = st.ERR_NONUNIQUE
+        if not first_run:
+            tm = await tm.rebuild(st.REQ_TITLE, checks=[check_unique(being_edited)])
+            if comm_ended(tm, ctx):
+                return
+            title = tm.prompt.content
+        else:
+            first_run = False
 
         # Ask for item contents.
-        item, tidy = await req(title, st.REQ_ITEM, tidy=tidy)
-        if item == val.escape:
-            return val.escape
-        prompt = item
+        tm = await tm.rebuild(st.REQ_DESCRIPTION)
+        if comm_ended(tm, ctx):
+            return
+        description = tm.prompt.content
 
         # Preview for user.
-        preview = "_" + title.content + "\n\n" + item.content + "_" + "\n\n"
-
-        unchecked = True
-        fin = None
+        preview = "\n\n" + "_" + title + "\n\n" + description + "_" + "\n\n"
 
         # Check if acceptable.
-        while unchecked:
-            if fin:
-                fin, tidy = await req(prompt, preview + st.REPEAT_CONF + " " + st.ASK_ITEM_ACCEPTABLE, tidy=tidy)
-            else:
-                fin, tidy = await req(prompt, preview + st.ASK_ITEM_ACCEPTABLE, tidy=tidy)
-            if fin == val.escape:
-                return val.escape
-            prompt = fin
+        tm = await tm.rebuild(st.ASK_ITEM_ACCEPTABLE + preview, checks=[check_alias_f(alias.CONFIRM_ALIASES),
+                                                                        check_args_f(st.MODE_EQ, 1)])
+        if comm_ended(tm, ctx):
+            return
+        fin = tm.prompt.content
 
-            if fin.content.lower() in alias.AFFIRM:
-                unacceptable = False
-                unchecked = False
-            elif fin.content.lower() in alias.DENY:
-                unchecked = False
-                ctx_error = st.REPEAT_ITEM
+        if fin.lower() in alias.AFFIRM:
+            unacceptable = False
 
     # Prepare item entry.
-    item_json = {st.F_TITLE: title.content,
-                 st.F_ITEM: item.content,
+    item_json = {st.F_TITLE: title,
+                 st.F_ITEM: description,
                  st.F_OWNER: ctx.message.author.id,
                  st.F_VOTERS: [],
                  st.F_COMP: {},
@@ -82,7 +68,7 @@ async def new_item(ctx, prompt, editing=False):
     # Add item entry.
     store_item(item_json)
 
-    return await tidy.rebuild(prompt, st.INF_ITEM_ADDED.format(title.content))
+    await tm.rebuild(st.INF_ITEM_ADDED.format(title), req=False)
 
 
 async def get_items(ctx):
@@ -122,51 +108,40 @@ async def get_items(ctx):
         all_names += names[i]
 
     # Print in a tidy message.
-    await TidyMessage.build(ctx, all_names, mode=TidyMode.STANDARD)
+    await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, req=False,
+                            content=all_names, mode=TidyMode.STANDARD)
 
 
 async def get_item(ctx, item):
     """Function designed to get an item and print it in a TidyMessage."""
-    # Make sure the item exists.
-    item = check_item(item)
-    if not item:
-        return await TidyMessage.build(ctx, st.ERR_ITEM_NONEXIST, mode=TidyMode.STANDARD)
+    if not used_title(item):
+        return await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, req=False,
+                                       content=st.ERR_ITEM_NONEXIST, mode=TidyMode.WARNING)
 
-    # Get item data.
-    i_json = get_item_json(item)
-
-    # Print in a tidy message.
-    await TidyMessage.build(ctx, st.item_entry(ctx, i_json), mode=TidyMode.STANDARD)
+    await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, req=False,
+                            content=st.item_entry(ctx, get_item_json(item)), mode=TidyMode.STANDARD)
 
 
 async def edit_item(ctx, item):
     """Function to edit an existing item."""
     # Make sure the item exists.
-    item = check_item(item)
-    if not item:
-        return await TidyMessage.build(ctx, st.ERR_ITEM_NONEXIST, mode=TidyMode.WARNING)
+    if not used_title(item):
+        return await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, req=False,
+                                       content=st.ERR_ITEM_NONEXIST, mode=TidyMode.WARNING)
 
     # Check to make sure the editor is the creator
-    item = get_item_json(item)
-    if ctx.message.author.id != item[st.F_OWNER]:
-        return await TidyMessage.build(ctx, st.ERR_NOT_YOURS, mode=TidyMode.WARNING)
+    if ctx.message.author.id != get_item_json(item)[st.F_OWNER]:
+        return await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, req=False,
+                                       content=st.ERR_NOT_YOURS, mode=TidyMode.WARNING)
 
     # Check to make sure they're okay losing votes.
-    unchecked, conf, prompt = True, None, ctx.message
-
-    while unchecked:
-        if conf:
-            conf, tidy = await req(prompt, st.REPEAT_CONF + " " + st.ASK_VOTE_ACCEPTABLE, tidy=tidy)
-        else:
-            conf, tidy = await req(prompt, st.ASK_VOTE_ACCEPTABLE, ctx=ctx)
-        if conf == val.escape:
-            return val.escape
-        prompt = conf
-
-        if conf.content.lower() in alias.AFFIRM:
-            unchecked = False
-        elif conf.content.lower() in alias.DENY:
-            return await TidyMessage.build(ctx, st.INF_EXIT_EDIT, mode=TidyMode.STANDARD)
+    tm = await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, content=st.ASK_VOTELOSS_ACCEPTABLE,
+                                 checks=[check_alias_f(alias.CONFIRM_ALIASES),
+                                         check_args_f(st.MODE_EQ, 1)], mode=TidyMode.STANDARD)
+    if comm_ended(tm, ctx):
+        return
+    if tm.prompt.content.lower() in alias.DENY:
+        return await tm.rebuild(ctx, st.INF_EXIT_EDIT, req=False, mode=TidyMode.STANDARD)
 
     # Define the path.
     items_dir = "model\\" \
@@ -176,41 +151,35 @@ async def edit_item(ctx, item):
     i_names = os.listdir(items_dir)
 
     # Make the new item entry.
-    await new_item(ctx, prompt, True)
+    await add_item(ctx, item)
 
     # If more files now, that means the old file wasn't overwritten, so delete it.
     if len(os.listdir(items_dir)) > len(i_names):
-        os.remove(items_dir + "\\" + item)
+        os.remove(items_dir + "\\" + item + ".json")
 
 
 async def delete_item(ctx, item):
     """Function to delete an existing item."""
     # Make sure the item exists.
-    item = check_item(item)
-    if not item:
-        return await TidyMessage.build(ctx, st.ERR_ITEM_NONEXIST, mode=TidyMode.WARNING)
+    if not used_title(item):
+        return await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, req=False,
+                                       content=st.ERR_ITEM_NONEXIST, mode=TidyMode.WARNING)
 
     # Check to make sure the editor is the creator
-    item = get_item_json(item)
-    if ctx.message.author.id != item[st.F_OWNER]:
-        return await TidyMessage.build(ctx, st.ERR_NOT_YOURS, mode=TidyMode.WARNING)
+    if ctx.message.author.id != get_item_json(item)[st.F_OWNER]:
+        return await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, req=False,
+                                       content=st.ERR_NOT_YOURS, mode=TidyMode.WARNING)
 
     # Check to make sure they're sure about deleting this.
     unchecked, conf, prompt = True, None, ctx.message
 
-    while unchecked:
-        if conf:
-            conf, tidy = await req(prompt, st.REPEAT_CONF + " " + st.ASK_DELETE_ACCEPTABLE, tidy=tidy)
-        else:
-            conf, tidy = await req(prompt, st.ASK_DELETE_ACCEPTABLE, ctx=ctx)
-        if conf == val.escape:
-            return val.escape
-        prompt = conf
-
-        if conf.content.lower() in alias.AFFIRM:
-            unchecked = False
-        elif conf.content.lower() in alias.DENY:
-            return await TidyMessage.build(ctx, st.INF_EXIT_DELETE, mode=TidyMode.STANDARD)
+    tm = await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, content=st.ASK_DELETE_ACCEPTABLE,
+                                 checks=[check_alias_f(alias.CONFIRM_ALIASES),
+                                         check_args_f(st.MODE_EQ, 1)], mode=TidyMode.STANDARD)
+    if comm_ended(tm, ctx):
+        return
+    if conf.content.lower() in alias.DENY:
+        return await TidyMessage.build(ctx, st.INF_EXIT_DELETE, mode=TidyMode.STANDARD)
 
     # Delete item entry.
     item_file = "model\\" \
@@ -219,242 +188,87 @@ async def delete_item(ctx, item):
     os.remove(item_file)
 
     # Jankily force some time where Skully laments.
-    prompt, tidy = await req(prompt, "...", tidy=tidy)
-    await req(prompt, st.INF_ITEM_DELETED, tidy=tidy)
-
-<<<<<<< HEAD
-
-<<<<<<< HEAD
-async def new_recipe(ctx, prompt, editing=False):
-    """Encapsulator that handles making new recipes."""
-    tidy, preview, unacceptable = "", None, True
-    ctx_error = "NO ERROR"
-
-    # Loop until acceptable.
-    while unacceptable:
-        # Prime the pump.
-        nonunique = True
-
-        # Ask for item title.
-        while nonunique:
-            if not tidy or editing:
-                title, tidy = await req(prompt, st.REQ_TITLE_R, ctx=ctx)
-            else:
-                title, tidy = await req(prompt, ctx_error + " " + st.REQ_TITLE_R, tidy=tidy)
-            if title == val.escape:
-                return val.escape
-            prompt = title
-
-            # Check for uniqueness.
-            if not check_recipe(title.content) or editing:
-                nonunique = False
-            else:
-                ctx_error = st.ERR_NONUNIQUE
-
-        # Ask for item contents.
-        recipe, tidy = await req(title, st.REQ_RECIPE, tidy=tidy)
-        if recipe == val.escape:
-            return val.escape
-        prompt = recipe
-
-        # Preview for user.
-        preview = "_" + title.content + "\n\n" + recipe.content + "_" + "\n\n"
-
-        unchecked = True
-        fin = None
-
-        # Check if acceptable.
-        while unchecked:
-            if fin:
-                fin, tidy = await req(prompt, preview + st.REPEAT_CONF + " " + st.ASK_ACCEPTABLE, tidy=tidy)
-            else:
-                fin, tidy = await req(prompt, preview + st.ASK_ACCEPTABLE, tidy=tidy)
-            if fin == val.escape:
-                return val.escape
-            prompt = fin
-
-            if fin.content.lower() in alias.AFFIRM:
-                unacceptable = False
-                unchecked = False
-            elif fin.content.lower() in alias.DENY:
-                unchecked = False
-                ctx_error = st.REPEAT_DATA
-
-    # Prepare item entry.
-    r_json = {st.F_TITLE: title.content,
-              st.F_ITEM: recipe.content,
-              st.F_OWNER: ctx.message.author.id,
-              st.F_VOTERS: [],
-              st.F_IMAGES: []}
-
-    # Add item entry.
-    store_recipe(r_json)
-
-    return await tidy.rebuild(prompt, st.INF_ITEM_ADDED.format(title.content))
-
-
-async def get_recipes(ctx):
-    """Function designed to get all recipes and print them in a TidyMessage."""
-    # Define the path.
-    r_dir = "model\\" \
-            + st.RECIPES_FN
-
-    # Load in file.
-    r_names, r_json = os.listdir(r_dir), {}
-    for r in r_names:
-        with open(r_dir + "\\" + r, "r") as fout:
-            r_json[r] = json.load(fout)
-
-    # Prepare fields.
-    all_names, names, votes = "Here are all the recipes you've taught me! \n\n", list(), list()
-
-    for key in r_names:
-        names.append("~ **" + r_json[key][st.F_TITLE] + '**\n' +
-                     "> Votes: " + str(len(r_json[key][st.F_VOTERS])) + '\n')
-        votes.append(len(r_json[key][st.F_VOTERS]))
-
-    # Sort names by vote.
-    for _ in range(len(names)):
-        for r in range(len(names)):
-            if r != 0 and votes[r] > votes[r - 1]:
-                bubble = votes[r]
-                votes[r] = votes[r - 1]
-                votes[r - 1] = bubble
-
-                bubble = names[r]
-                names[r] = names[r - 1]
-                names[r - 1] = bubble
-
-    # Concatenate all names.
-    for r in range(len(names)):
-        all_names += names[r]
-
-    # Print in a tidy message.
-    await TidyMessage.build(ctx, all_names, mode=TidyMode.STANDARD)
-
-
-async def get_recipe(ctx, recipe):
-    """Function designed to get an item and print it in a TidyMessage."""
-    # Make sure the item exists.
-    recipe = check_recipe(recipe)
-    if not recipe:
-        return await TidyMessage.build(ctx, st.ERR_NONEXIST, mode=TidyMode.STANDARD)
-
-    # Get item data.
-    r_json = get_recipe_json(recipe)
-
-    # Print in a tidy message.
-    await TidyMessage.build(ctx, st.recipe_entry(ctx, r_json), mode=TidyMode.STANDARD)
-
-
-async def edit_recipe(ctx, recipe):
-    """Function to edit an existing recipe."""
-    # Make sure the item exists.
-    recipe = check_recipe(recipe)
-    if not recipe:
-        return await TidyMessage.build(ctx, st.ERR_NONEXIST, mode=TidyMode.WARNING)
-
-    # Check to make sure the editor is the creator
-    recipe = get_recipe_json(recipe)
-    if ctx.message.author.id != recipe[st.F_OWNER]:
-        return await TidyMessage.build(ctx, st.ERR_NOT_YOURS, mode=TidyMode.WARNING)
-
-    # Check to make sure they're okay losing votes.
-    unchecked, conf, prompt = True, None, ctx.message
-
-    while unchecked:
-        if conf:
-            conf, tidy = await req(prompt, st.REPEAT_CONF + " " + st.ASK_VOTE_ACCEPTABLE, tidy=tidy)
-        else:
-            conf, tidy = await req(prompt, st.ASK_VOTE_ACCEPTABLE, ctx=ctx)
-        if conf == val.escape:
-            return val.escape
-        prompt = conf
-
-        if conf.content.lower() in alias.AFFIRM:
-            unchecked = False
-        elif conf.content.lower() in alias.DENY:
-            return await TidyMessage.build(ctx, st.INF_EXIT_EDIT, mode=TidyMode.STANDARD)
-
-    # Define the path.
-    r_dir = "model\\" \
-            + st.RECIPES_FN
-
-    # Record number of files in items before making a new one.
-    r_names = os.listdir(r_dir)
-
-    # Make the new item entry.
-    await new_recipe(ctx, prompt, True)
-
-    # If more files now, that means the old file wasn't overwritten, so delete it.
-    if len(os.listdir(r_dir)) > len(r_names):
-        os.remove(r_dir + "\\" + recipe)
-
-
-async def delete_recipe(ctx, recipe):
-    """Function to delete an existing recipe."""
-    # Make sure the recipe exists.
-    recipe = check_recipe(recipe)
-    if not recipe:
-        return await TidyMessage.build(ctx, st.ERR_NONEXIST, mode=TidyMode.WARNING)
-
-    # Check to make sure the editor is the creator
-    recipe = get_recipe_json(recipe)
-    if ctx.message.author.id != recipe[st.F_OWNER]:
-        return await TidyMessage.build(ctx, st.ERR_NOT_YOURS, mode=TidyMode.WARNING)
-
-    # Check to make sure they're sure about deleting this.
-    unchecked, conf, prompt = True, None, ctx.message
-
-    while unchecked:
-        if conf:
-            conf, tidy = await req(prompt, st.REPEAT_CONF + " " + st.ASK_DELETE_ACCEPTABLE, tidy=tidy)
-        else:
-            conf, tidy = await req(prompt, st.ASK_DELETE_ACCEPTABLE, ctx=ctx)
-        if conf == val.escape:
-            return val.escape
-        prompt = conf
-
-        if conf.content.lower() in alias.AFFIRM:
-            unchecked = False
-        elif conf.content.lower() in alias.DENY:
-            return await TidyMessage.build(ctx, st.INF_EXIT_DELETE, mode=TidyMode.STANDARD)
-
-    # Delete item entry.
-    item_file = "model\\" \
-                + st.RECIPES_FN + "\\" \
-                + recipe[st.F_TITLE].lower() + ".json"
-    os.remove(item_file)
-
-    # Jankily force some time where Skully laments.
-    prompt, tidy = await req(prompt, "...", tidy=tidy)
-    await req(prompt, st.INF_ITEM_DELETED, tidy=tidy)
+    tm = await tm.rebuild("...", req=False)
+    await tm.rebuild(st.INF_ITEM_DELETED, req=False)
 
 
 async def vote_item(ctx, item):
-=======
-async def vote_on(ctx, item):
->>>>>>> parent of 02eae38... Check to make sure people don't vote for their own item.
-=======
-async def vote_on(ctx, item):
->>>>>>> parent of a4ff330... Added rudimentary recipe storing functionality.
     """A function to increase the vote count on an item."""
     # Check and get item data.
-    item = check_item(item)
-    if not item:
-        return await TidyMessage.build(ctx, st.ERR_ITEM_NONEXIST, mode=TidyMode.STANDARD)
-    i_json = get_item_json(item)
+    if not used_title(item):
+        return await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, req=False,
+                                       content=st.ERR_ITEM_NONEXIST, mode=TidyMode.STANDARD)
 
+    i_json = get_item_json(item)
     if ctx.message.author.name not in i_json[st.F_VOTERS]:
         # If they haven't voted yet, let them vote.
         i_json[st.F_VOTERS].append(ctx.message.author.name)
         store_item(i_json)
 
-        # Return a TM informing them the duty is done.
-        await TidyMessage.build(ctx, st.INF_VOTED.format(i_json[st.F_TITLE]), mode=TidyMode.STANDARD)
+        await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, req=False,
+                                content=st.INF_VOTED.format(i_json[st.F_TITLE]), mode=TidyMode.STANDARD)
     else:
-        # Otherwise, return an error.
-        await TidyMessage.build(ctx, st.ERR_ALREADY_VOTED, mode=TidyMode.WARNING)
+        await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, req=False,
+                                content=st.ERR_ALREADY_VOTED, mode=TidyMode.WARNING)
+
+
+# Checks
+
+
+def check_unique(being_edited):
+    def check(*args):
+        return True if not used_title(" ".join(args)) or \
+                       used_title(" ".join(args)) is being_edited + ".json" else st.ERR_NONUNIQUE
+    return check
+
+
+def check_alias_f(aliases, no_dups=False):
+    """A check-factory that makes a check that looks to see if there's
+     any of a set of characters inside of an alias [dictionary of values]."""
+    def check(*args):
+        # Prepare a list to measure variables already used and another to count checks.
+        used, c_list, matched = list(), list(), False
+
+        # Check each alias against each argument.
+        for a in args:
+            for name in aliases:
+                for al in aliases[name]:
+                    matched = al.lower() == a.lower()
+                    if matched and name in used and no_dups:
+                        return st.ERR_REPEAT_VAL.format(a)
+                    elif matched:
+                        used.append(name)
+                        break
+                if matched:
+                    break
+            if not matched:
+                return st.ERR_NOT_IN_ALIAS.format(a)
+        return True
+    return check
+
+
+def check_args_f(op, num):
+    """A check-factory that makes a check that looks at the number of args relative to an operator.
+        len(args) <op> num :: Plain English: the number of args should be <op> 'num' otherwise throw an error."""
+    if op == st.MODE_GT:
+        def check(*args):
+            return True if len(args) > num else st.ERR_TOO_FEW_ARGS.format("more than", str(num))
+    elif op == st.MODE_GTE:
+        def check(*args):
+            return True if len(args) >= num else st.ERR_TOO_FEW_ARGS.format(str(num), "or more")
+    elif op == st.MODE_LT:
+        def check(*args):
+            return True if len(args) < num else st.ERR_TOO_MANY_ARGS.format("less than", str(num))
+    elif op == st.MODE_LTE:
+        def check(*args):
+            return True if len(args) <= num else st.ERR_TOO_MANY_ARGS.format(str(num), "or less")
+    elif op == st.MODE_EQ:
+        def check(*args):
+            return True if len(args) == num else st.ERR_INEXACT_ARGS.format(str(num))
+    else:  # I hate myself, so fail silently and just not check the args for not inputting things properly.
+        def check(*args):
+            return True
+    return check
 
 
 # Utility #
@@ -465,7 +279,7 @@ def get_item_json(item):
     # Define the path.
     item_file = "model\\" \
                 + st.ITEMS_FN + "\\" \
-                + item
+                + item + ".json"
 
     # Load in file.
     with open(item_file, "r") as fout:
@@ -503,50 +317,33 @@ def return_member(ctx, mention="", user_id=""):
     return members.get(mention)
 
 
-def check_item(item):
+def used_title(item):
     """Checks the items folder to see if an item exists. If it does, returns the item name."""
     # Make sure the item name is properly formatted.
     items_dir = "model\\" \
                 + st.ITEMS_FN
-    item += ".json"
 
     # Load in file.
+    print(os.path.exists(items_dir))
+    if not os.path.exists(items_dir):
+        try:
+            print("Making Directory...")
+            os.makedirs(items_dir)
+        except OSError as exc:  # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
     i_names = os.listdir(items_dir)
     for i in i_names:
-        if i.lower() == item.lower():
+        if i.lower() == (item + ".json").lower():
             return i
     return False
-
-
-async def req(prompt, req_str, tidy=None, **kwargs):
-    """Ask a request for the user and return that request as a list of inputs or return an escape character."""
-
-    # Prepare the mode
-    mode = TidyMode.STANDARD
-
-    if kwargs.get("mode"):
-        mode = kwargs.get("mode")
-
-    # Ask the request.
-    if not tidy:
-        tidy = await TidyMessage.build(kwargs.get("ctx"), req_str, mode=mode)
-    else:
-        await tidy.rebuild(prompt, req_str)
-
-    # Define check
-    a = prompt.author
-    c = prompt.channel
-
-    def check(resp): return resp.author == a and resp.channel == c
-
-    # Wait for response.
-    rsp = await val.bot.wait_for("message", check=check)
-    if rsp.content.lower() == val.escape:
-        return val.escape, tidy
-    return rsp, tidy
 
 
 def get_app_token():
     with open('token.txt', 'r') as token:
         token = token.read()
     return token
+
+
+def comm_ended(tm, ctx):
+    return tm.message.embeds[0].description == st.TIMEOUT or tm.prompt.content == st.ESCAPE_SEQUENCE
