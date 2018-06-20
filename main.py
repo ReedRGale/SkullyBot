@@ -144,6 +144,12 @@ async def add_item(ctx, *args):
     await util.add_item(ctx)
 
 
+@add.command(name="souls", help=st.ADDSOUL_HELP, brief=st.ADDSOUL_BRIEF)
+@call_command
+async def add_item(ctx, *args):
+    await util.add_soul(ctx, *args)
+
+
 @val.bot.command(name="vote", help=st.VE_HELP, brief=st.VE_BRIEF)
 @call_command
 async def vote(ctx, *args):
