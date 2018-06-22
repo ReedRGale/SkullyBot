@@ -132,7 +132,6 @@ async def general_help(ctx):
 
 @val.bot.group(name="add", help=st.ADD_HELP, brief=st.ADD_BRIEF)
 async def add(ctx):
-    pprint(ctx.invoked_with)
     if ctx.invoked_subcommand is None:
         await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, req=False,
                                 content=st.ERR_ADD_WHAT, mode=TidyMode.WARNING)

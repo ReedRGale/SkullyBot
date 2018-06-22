@@ -71,6 +71,125 @@ async def add_item(ctx, being_edited=""):
     await tm.rebuild(st.INF_ITEM_ADDED.format(title), req=False)
 
 
+async def add_soul(ctx, *args):
+    """Encapsulator that handles making new items."""
+    character, soul_value, tm = args[1], int(args[2]), None
+
+    if not ws_character_exists(character):
+        tm = await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, content=st.REQ_CHARACTER_CREATION,
+                                     checks=[check_alias_f(alias.CONFIRM_ALIASES),
+                                             check_args_f(st.MODE_EQ, 1)], timeout=val.MEDIUM)
+        if comm_ended(tm, ctx):
+            return
+
+        if tm.prompt.content.lower() in alias.DENY:
+            return await tm.rebuild(st.INF_NO_CHARACTER_CREATION, req=False)
+
+    # Simulate adding souls and prompt user.
+    character_json = get_ws_character(character)
+    tm = await preview_add_soul(ctx, tm, character_json, soul_value)
+    if comm_ended(tm, ctx):
+        return
+
+    if tm.prompt.content.lower() in alias.DENY:
+        return await tm.rebuild(st.INF_NO_ADDED_SOULS, req=False)
+
+    await tm.rebuild(st.INF_NEW_SOUL_VALUE.format(character_json[st.FLD_NAME],
+                                                  soul_value,
+                                                  character_json[st.FLD_SOUL] + soul_value,
+                                                  ws_level(character_json[st.FLD_SOUL] + soul_value),
+                                                  ws_next_level(character_json[st.FLD_SOUL] + soul_value)), req=False)
+
+    character_json = {st.FLD_NAME: character.title(),
+                      st.FLD_SOUL: character_json[st.FLD_SOUL] + soul_value}
+    store_ws_character(character, character_json)
+
+
+def ws_character_exists(character):
+    character_dir = "model\\" \
+                    + st.WS_FN + "\\" \
+                    + st.CHARACTER_FN + "\\"
+
+    if not os.path.exists(character_dir):
+        try:
+            os.makedirs(character_dir)
+        except OSError as exc:  # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
+    filenames = os.listdir(character_dir)
+
+    for name in filenames:
+        if name.lower() == (character + ".json").lower():
+            return True
+    return False
+
+
+def get_ws_character(character):
+    character_file = "model\\" \
+                    + st.WS_FN + "\\" \
+                    + st.CHARACTER_FN + "\\" \
+                    + character + ".json"
+
+    if ws_character_exists(character):
+        with open(character_file, "r") as fout:
+            return json.load(fout)
+    else:
+        return {st.FLD_NAME: character.title(),
+                st.FLD_SOUL: 0}
+
+
+def store_ws_character(character, character_json):
+    character_file = "model\\" \
+                    + st.WS_FN + "\\" \
+                    + st.CHARACTER_FN + "\\" \
+                    + character + ".json"
+
+    with open(character_file, "w") as fout:
+        json.dump(character_json, fout, indent=1)
+
+
+def ws_level(souls):
+    level = 1
+    while souls >= level:
+        souls -= level + 1
+        level += 1
+    return level
+
+
+def ws_next_level(souls):
+    level = 1
+    while souls >= level:
+        souls -= level + 1
+        level += 1
+    return (level + 1) - souls
+
+
+async def preview_add_soul(ctx, tm, character_json, soul_value):
+    if tm:
+        tm = await tm.rebuild(st.ADDSOUL_PREVIEW.format(character_json[st.FLD_NAME],
+                                                        ws_level(character_json[st.FLD_SOUL]),
+                                                        ws_level(character_json[st.FLD_SOUL] + soul_value),
+                                                        character_json[st.FLD_SOUL],
+                                                        character_json[st.FLD_SOUL] + soul_value,
+                                                        ws_next_level(character_json[st.FLD_SOUL]),
+                                                        ws_next_level(character_json[st.FLD_SOUL] + soul_value)),
+                              checks=[check_alias_f(alias.CONFIRM_ALIASES),
+                                      check_args_f(st.MODE_EQ, 1)])
+    else:
+        tm = await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE,
+                                     content=st.ADDSOUL_PREVIEW.format(
+                                                        character_json[st.FLD_NAME],
+                                                        ws_level(character_json[st.FLD_SOUL]),
+                                                        ws_level(character_json[st.FLD_SOUL] + soul_value),
+                                                        character_json[st.FLD_SOUL],
+                                                        character_json[st.FLD_SOUL] + soul_value,
+                                                        ws_next_level(character_json[st.FLD_SOUL]),
+                                                        ws_next_level(character_json[st.FLD_SOUL] + soul_value)),
+                                     checks=[check_alias_f(alias.CONFIRM_ALIASES),
+                                             check_args_f(st.MODE_EQ, 1)], timeout=val.MEDIUM)
+    return tm
+
+
 async def get_items(ctx):
     """Function designed to get all items and print them in a TidyMessage."""
     # Define the path.

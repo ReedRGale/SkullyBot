@@ -28,6 +28,13 @@ ADDITEM_HELP = "To Call: 'skully, add item'\n\n" \
           "you want to call this potential item, then I'll ask for its description so that I can keep it in " \
           "my memory for safekeeping. I'll be your virtual 'inventory' so to speak! ^...^"
 
+ADDSOUL_BRIEF = "This is how Panur can add a new souls to the record of characters!"
+ADDSOUL_HELP = "To Call: 'skully, add soul [character] [amount]'\n\n" \
+          "Call anywhere within the server to add souls to a character. Basically, miss Pan, put in the character " \
+          "and then input the value! ^...^ If a character doesn't yet exist, I'll create them with this command too! " \
+          "I can also remove soul value in case of messups or odd circumstances by putting in negative numbers. " \
+          " Ex: skully, add soul Alice 3"
+
 ITEMS_BRIEF = "'Items' is how you can ask for either all the items I have or, all the details on one specific item!"
 ITEMS_HELP = "To Call: 'skully, items' OR 'skully, items [item]'\n\n" \
              "Call anywhere within the server to retrieve item info!! This allows me to tell you all about what you've " \
@@ -65,6 +72,11 @@ INF_COMMAND_GROUP = "Here's everything I know about this group of commands: \n\n
 INF_HELP = "Here's what I know about '{}:' \n\n{}"
 INF_TOP_LEVEL_COMMANDS = "Here's all the major command types. If you want to delve them further, " \
                          "just call 'skully, help <subcommand>'!\n\n"
+INF_NO_CHARACTER_CREATION = "Got it! Let me know if you change your mind though!!"
+INF_NO_ADDED_SOULS = "Alright! Let me know if you need me to add souls in the future though!!"
+INF_NEW_SOUL_VALUE = "{} is now {} souls stronger! They have {} souls total, are level {} " \
+                     "now and {} souls until levelup!"
+
 ESCAPE = "I'll escape the command, but just because you asked nicely. ;>"
 TIMEOUT = "So, you've taken a bit to continue this command. So... call me back when you know what you want to " \
           "do. Indecisiveness is a real bore. Ciao!"
@@ -72,6 +84,8 @@ TIMEOUT = "So, you've taken a bit to continue this command. So... call me back w
 
 REPEAT_ITEM = "Alright then! Let's try working through this again! As many times as it takes! >...<"
 REPEAT_CONF = "I'm sorry, I didn't quite catch that!"
+
+ADDSOUL_PREVIEW = "Is this okay?\n\n {}:\n\n**Level:** {} --> {}\n**Souls:** {} --> {}\n**Next Level:** {} --> {}"
 
 
 # Confirmation #
@@ -89,6 +103,7 @@ ESCAPE_SEQUENCE = "nevermind, skully"
 
 REQ_TITLE = "So, you've got a new item for me, sir or ma'am? What is it going to be called?"
 REQ_DESCRIPTION = "Alright... describe for me the item, if you would!!"
+REQ_CHARACTER_CREATION = "So I don't know who this is... did you want me to make a new entry for this character?"
 
 
 # Filepaths #
@@ -100,6 +115,8 @@ FLD_CNTT = "content"
 FLD_MODE = "mode"
 FLD_PAGE = "page"
 FLD_EDTBL = "editable"
+FLD_NAME = "name"
+FLD_SOUL = "souls"
 COMM_UNF = "unaffiliated"
 
 ITEMS_FN = "items"
@@ -109,6 +126,8 @@ LOGS_FN = "logs"
 CANONS_FN = "canons"
 COMMANDS_FN = "commands"
 GENERAL_FN = "general"
+WS_FN = "willfordswap"
+CHARACTER_FN = "character"
 
 
 # Comparison Modes #

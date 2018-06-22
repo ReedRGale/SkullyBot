@@ -42,4 +42,4 @@ def p_color(tm):
 
 calling = dict()
 escape = "nevermind, skully"
-bot = commands.Bot(command_prefix="skully, ", fetch_offline_members=True)
+bot = commands.Bot(command_prefix="skully, ", fetch_offline_members=True, owner_id=387875136159744001)
