@@ -146,7 +146,20 @@ async def add_item(ctx, *args):
 @add.command(name="souls", help=st.ADDSOUL_HELP, brief=st.ADDSOUL_BRIEF)
 @call_command
 async def add_item(ctx, *args):
-    await util.add_soul(ctx, *args)
+    await util.add_souls(ctx, *args)
+
+
+@val.bot.group(name="view", help=st.VIEW_HELP, brief=st.VIEW_BRIEF)
+async def view(ctx):
+    if ctx.invoked_subcommand is None:
+        await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, req=False,
+                                content=st.ERR_VIEW_WHAT, mode=TidyMode.WARNING)
+
+
+@view.command(name="souls", help=st.VIEWSOUL_HELP, brief=st.VIEWSOUL_BRIEF)
+@call_command
+async def view_souls(ctx, *args):
+    await util.view_souls(ctx, *args)
 
 
 @val.bot.command(name="vote", help=st.VE_HELP, brief=st.VE_BRIEF)

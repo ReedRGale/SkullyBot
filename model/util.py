@@ -71,11 +71,32 @@ async def add_item(ctx, being_edited=""):
     await tm.rebuild(st.INF_ITEM_ADDED.format(title), req=False)
 
 
-async def add_soul(ctx, *args):
+async def add_souls(ctx, *args):
     """Encapsulator that handles making new items."""
-    character, soul_value, tm = args[1], int(args[2]), None
+    if len(args) == 3:
+        character, soul_value, is_simulating, tm = args[1], int(args[2]), False, None
+    else:
+        return await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, req=False,
+                                       content=st.ERR_INVALID_ADDSOUL_ARGS.format(len(args)), mode=TidyMode.WARNING)
 
-    if not ws_character_exists(character):
+    if ctx.message.author.id not in [231070345396748289, 231246612792344577, 178391145401942016]:
+        if not ws_character_exists(character):
+            return await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, req=False,
+                                           content=st.ERR_INVALID_PERMISSIONS, mode=TidyMode.WARNING)
+        else:
+            tm = await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE,
+                                         content=st.ERR_INVALID_PERMISSIONS + st.INF_SIMULATE_ADDSOUL,
+                                         checks=[check_alias_f(alias.CONFIRM_ALIASES),
+                                                 check_args_f(st.MODE_EQ, 1)])
+        if comm_ended(tm, ctx):
+            return
+
+        if tm.prompt.content.lower() in alias.DENY:
+            return await tm.rebuild(st.INF_SUIT_YOURSELF, req=False)
+        else:
+            is_simulating = True
+
+    if not ws_character_exists(character) and not is_simulating:
         tm = await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, content=st.REQ_CHARACTER_CREATION,
                                      checks=[check_alias_f(alias.CONFIRM_ALIASES),
                                              check_args_f(st.MODE_EQ, 1)], timeout=val.MEDIUM)
@@ -84,9 +105,14 @@ async def add_soul(ctx, *args):
 
         if tm.prompt.content.lower() in alias.DENY:
             return await tm.rebuild(st.INF_NO_CHARACTER_CREATION, req=False)
+        else:
+            tm = await create_new_ws_character(character, tm)
+
+    character_json = get_ws_character(character)
+    if is_simulating:
+        return await preview_add_soul(ctx, tm, character_json, soul_value, is_simulating)
 
     # Simulate adding souls and prompt user.
-    character_json = get_ws_character(character)
     tm = await preview_add_soul(ctx, tm, character_json, soul_value)
     if comm_ended(tm, ctx):
         return
@@ -98,10 +124,82 @@ async def add_soul(ctx, *args):
                                                   soul_value,
                                                   character_json[st.FLD_SOUL] + soul_value,
                                                   ws_level(character_json[st.FLD_SOUL] + soul_value),
-                                                  ws_next_level(character_json[st.FLD_SOUL] + soul_value)), req=False)
+                                                  ws_next_level(character_json[st.FLD_SOUL] + soul_value),
+                                                  str(int(character_json[st.FLD_VIT])
+                                                      + 5 * (ws_level(character_json[st.FLD_SOUL]) - 1)),
+                                                  str(int(character_json[st.FLD_VIT])
+                                                      + 5 * (ws_level(character_json[st.FLD_SOUL] + soul_value) - 1)),
+                                                  ws_character_levelup_int(
+                                                      character_json, ws_level(character_json[st.FLD_SOUL])),
+                                                  ws_character_levelup_int(
+                                                      character_json,
+                                                      ws_level(character_json[st.FLD_SOUL] + soul_value)),
+                                                  ws_character_levelup_dex(
+                                                      character_json, ws_level(character_json[st.FLD_SOUL])),
+                                                  ws_character_levelup_dex(
+                                                      character_json,
+                                                      ws_level(character_json[st.FLD_SOUL] + soul_value)),
+                                                  ws_character_levelup_str(
+                                                      character_json, ws_level(character_json[st.FLD_SOUL])),
+                                                  ws_character_levelup_str(
+                                                      character_json,
+                                                      ws_level(character_json[st.FLD_SOUL] + soul_value))),
+                     req=False)
 
     character_json = {st.FLD_NAME: character.title(),
-                      st.FLD_SOUL: character_json[st.FLD_SOUL] + soul_value}
+                      st.FLD_SOUL: character_json[st.FLD_SOUL] + soul_value,
+                      st.FLD_VIT: character_json[st.FLD_VIT],
+                      st.FLD_STR: character_json[st.FLD_STR],
+                      st.FLD_DEX: character_json[st.FLD_DEX],
+                      st.FLD_INT: character_json[st.FLD_INT],
+                      st.FLD_PRIMARY: character_json[st.FLD_PRIMARY]}
+    store_ws_character(character, character_json)
+
+
+async def view_souls(ctx, *args):
+    character = args[1]
+    if ws_character_exists(character):
+        character_json = get_ws_character(character)
+        return await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, req=False,
+                                       content=st.INF_CHARACTER_STATS.format(
+                                                character_json[st.FLD_NAME],
+                                                ws_level(character_json[st.FLD_SOUL]),
+                                                character_json[st.FLD_SOUL],
+                                                ws_next_level(character_json[st.FLD_SOUL])))
+    else:
+        return await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE, req=False,
+                                       content=st.ERR_WHO_NOW, mode=TidyMode.WARNING)
+
+
+async def create_new_ws_character(character, tm):
+    # Ask for base vitality
+    tm = await tm.rebuild(st.REQ_VIT, checks=[check_args_f(st.MODE_EQ, 1), check_int])
+    vitality = tm.prompt.content
+
+    # Ask for base strength
+    tm = await tm.rebuild(st.REQ_STR, checks=[check_args_f(st.MODE_EQ, 1), check_int])
+    strength = tm.prompt.content
+
+    # Ask for base dex
+    tm = await tm.rebuild(st.REQ_DEX, checks=[check_args_f(st.MODE_EQ, 1), check_int])
+    dexterity = tm.prompt.content
+
+    # Ask for base int
+    tm = await tm.rebuild(st.REQ_INT, checks=[check_args_f(st.MODE_EQ, 1), check_int])
+    intelligence = tm.prompt.content
+
+    # Ask for primary stat
+    tm = await tm.rebuild(st.REQ_PRIMARY, checks=[check_args_f(st.MODE_EQ, 1),
+                                                  check_alias_f(alias.PRIMARY_ALIASES)])
+    primary = tm.prompt.content
+
+    character_json = {st.FLD_NAME: character.title(),
+                      st.FLD_SOUL: 0,
+                      st.FLD_VIT: vitality,
+                      st.FLD_STR: strength,
+                      st.FLD_DEX: dexterity,
+                      st.FLD_INT: intelligence,
+                      st.FLD_PRIMARY: primary}
     store_ws_character(character, character_json)
 
 
@@ -133,9 +231,7 @@ def get_ws_character(character):
     if ws_character_exists(character):
         with open(character_file, "r") as fout:
             return json.load(fout)
-    else:
-        return {st.FLD_NAME: character.title(),
-                st.FLD_SOUL: 0}
+    return None
 
 
 def store_ws_character(character, character_json):
@@ -164,30 +260,112 @@ def ws_next_level(souls):
     return (level + 1) - souls
 
 
-async def preview_add_soul(ctx, tm, character_json, soul_value):
-    if tm:
-        tm = await tm.rebuild(st.ADDSOUL_PREVIEW.format(character_json[st.FLD_NAME],
-                                                        ws_level(character_json[st.FLD_SOUL]),
-                                                        ws_level(character_json[st.FLD_SOUL] + soul_value),
-                                                        character_json[st.FLD_SOUL],
-                                                        character_json[st.FLD_SOUL] + soul_value,
-                                                        ws_next_level(character_json[st.FLD_SOUL]),
-                                                        ws_next_level(character_json[st.FLD_SOUL] + soul_value)),
-                              checks=[check_alias_f(alias.CONFIRM_ALIASES),
-                                      check_args_f(st.MODE_EQ, 1)])
-    else:
-        tm = await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE,
-                                     content=st.ADDSOUL_PREVIEW.format(
+async def preview_add_soul(ctx, tm, character_json, soul_value, is_simulation=False):
+    if is_simulation:
+        tm = await tm.rebuild(st.ADDSOUL_PREVIEW.format(
                                                         character_json[st.FLD_NAME],
                                                         ws_level(character_json[st.FLD_SOUL]),
                                                         ws_level(character_json[st.FLD_SOUL] + soul_value),
                                                         character_json[st.FLD_SOUL],
                                                         character_json[st.FLD_SOUL] + soul_value,
-                                                        ws_next_level(character_json[st.FLD_SOUL]),
-                                                        ws_next_level(character_json[st.FLD_SOUL] + soul_value)),
+                                                        ws_next_level(character_json[st.FLD_SOUL] + soul_value),
+                                                        str(int(character_json[st.FLD_VIT])
+                                                            + 5 * ws_level(character_json[st.FLD_SOUL])),
+                                                        str(int(character_json[st.FLD_VIT])
+                                                            + 5 * ws_level(character_json[st.FLD_SOUL] + soul_value)),
+                                                        ws_character_levelup_int(
+                                                            character_json, ws_level(character_json[st.FLD_SOUL])),
+                                                        ws_character_levelup_int(
+                                                            character_json,
+                                                            ws_level(character_json[st.FLD_SOUL] + soul_value)),
+                                                        ws_character_levelup_dex(
+                                                            character_json, ws_level(character_json[st.FLD_SOUL])),
+                                                        ws_character_levelup_dex(
+                                                            character_json,
+                                                            ws_level(character_json[st.FLD_SOUL] + soul_value)),
+                                                        ws_character_levelup_str(
+                                                            character_json, ws_level(character_json[st.FLD_SOUL])),
+                                                        ws_character_levelup_str(
+                                                            character_json,
+                                                            ws_level(character_json[st.FLD_SOUL] + soul_value))),
+                              req=False, timeout=val.MEDIUM)
+    elif tm:
+        tm = await tm.rebuild(st.REQ_OKAY + st.ADDSOUL_PREVIEW.format(
+                                                        character_json[st.FLD_NAME],
+                                                        ws_level(character_json[st.FLD_SOUL]),
+                                                        ws_level(character_json[st.FLD_SOUL] + soul_value),
+                                                        character_json[st.FLD_SOUL],
+                                                        character_json[st.FLD_SOUL] + soul_value,
+                                                        ws_next_level(character_json[st.FLD_SOUL] + soul_value),
+                                                        str(int(character_json[st.FLD_VIT])
+                                                            + 5 * ws_level(character_json[st.FLD_SOUL])),
+                                                        str(int(character_json[st.FLD_VIT])
+                                                            + 5 * ws_level(character_json[st.FLD_SOUL] + soul_value)),
+                                                        ws_character_levelup_int(
+                                                            character_json, ws_level(character_json[st.FLD_SOUL])),
+                                                        ws_character_levelup_int(
+                                                            character_json,
+                                                            ws_level(character_json[st.FLD_SOUL] + soul_value)),
+                                                        ws_character_levelup_dex(
+                                                            character_json, ws_level(character_json[st.FLD_SOUL])),
+                                                        ws_character_levelup_dex(
+                                                            character_json,
+                                                            ws_level(character_json[st.FLD_SOUL] + soul_value)),
+                                                        ws_character_levelup_str(
+                                                            character_json, ws_level(character_json[st.FLD_SOUL])),
+                                                        ws_character_levelup_str(
+                                                            character_json,
+                                                            ws_level(character_json[st.FLD_SOUL] + soul_value))),
+                              checks=[check_alias_f(alias.CONFIRM_ALIASES),
+                                      check_args_f(st.MODE_EQ, 1)], timeout=val.MEDIUM)
+    else:
+        tm = await TidyMessage.build(ctx, st.ESCAPE_SEQUENCE,
+                                     content=st.REQ_OKAY + st.ADDSOUL_PREVIEW.format(
+                                                        character_json[st.FLD_NAME],
+                                                        ws_level(character_json[st.FLD_SOUL]),
+                                                        ws_level(character_json[st.FLD_SOUL] + soul_value),
+                                                        character_json[st.FLD_SOUL],
+                                                        character_json[st.FLD_SOUL] + soul_value,
+                                                        ws_next_level(character_json[st.FLD_SOUL] + soul_value),
+                                                        str(int(character_json[st.FLD_VIT])
+                                                            + 5 * (ws_level(character_json[st.FLD_SOUL]) - 1)),
+                                                        str(int(character_json[st.FLD_VIT])
+                                                            + 5 * (ws_level(character_json[st.FLD_SOUL] + soul_value)
+                                                                   - 1)),
+                                                        ws_character_levelup_int(
+                                                            character_json, ws_level(character_json[st.FLD_SOUL])),
+                                                        ws_character_levelup_int(
+                                                            character_json,
+                                                            ws_level(character_json[st.FLD_SOUL] + soul_value)),
+                                                        ws_character_levelup_dex(
+                                                            character_json, ws_level(character_json[st.FLD_SOUL])),
+                                                        ws_character_levelup_dex(
+                                                            character_json,
+                                                            ws_level(character_json[st.FLD_SOUL] + soul_value)),
+                                                        ws_character_levelup_str(
+                                                            character_json, ws_level(character_json[st.FLD_SOUL])),
+                                                        ws_character_levelup_str(
+                                                            character_json,
+                                                            ws_level(character_json[st.FLD_SOUL] + soul_value))),
                                      checks=[check_alias_f(alias.CONFIRM_ALIASES),
                                              check_args_f(st.MODE_EQ, 1)], timeout=val.MEDIUM)
     return tm
+
+
+def ws_character_levelup_int(json, levels):
+    return int(json[st.FLD_INT]) + 3 * (levels - 1) if st.FLD_INT.lower() != json[st.FLD_PRIMARY].lower() \
+        else int(json[st.FLD_INT]) + 4 * (levels - 1)
+
+
+def ws_character_levelup_dex(json, levels):
+    return int(json[st.FLD_DEX]) + 3 * (levels - 1) if st.FLD_DEX.lower() != json[st.FLD_PRIMARY].lower() \
+        else int(json[st.FLD_DEX]) + 4 * (levels - 1)
+
+
+def ws_character_levelup_str(json, levels):
+
+    return int(json[st.FLD_STR]) + 3 * (levels - 1) if st.FLD_STR.lower() != json[st.FLD_PRIMARY].lower() \
+        else int(json[st.FLD_STR]) + 4 * (levels - 1)
 
 
 async def get_items(ctx):
@@ -390,6 +568,14 @@ def check_args_f(op, num):
     return check
 
 
+def check_int(*args):
+    """Check that tells you if every argument is an integer."""
+    for a in args:
+        if not is_int(a):
+            return st.ERR_NOT_INT
+    return True
+
+
 # Utility #
 
 
@@ -466,3 +652,12 @@ def get_app_token():
 
 def comm_ended(tm, ctx):
     return tm.message.embeds[0].description == st.TIMEOUT or tm.prompt.content == st.ESCAPE_SEQUENCE
+
+
+def is_int(num):
+    """Tool to tell me if something is an int or not without crashing."""
+    try:
+        int(num)
+        return True
+    except ValueError:
+        return False

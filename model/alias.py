@@ -6,3 +6,6 @@ AFFIRM = ["y", "yes", "yup", "uhuh", "ye", "yea", "good", "totally"]
 DENY = ["n", "no", "nah", "nope", "nu", "nuu", "nuuu", "nuuuu", "nuuuuu", "nuuuuuu", "nuuuuuuu", "nuuuuuuuu",
         "noo", "nooo", "noooo", "nooooo", "nooooooo", "noooooooo"]
 CONFIRM_ALIASES = {"AFFIRM": AFFIRM, "DENY": DENY}
+
+STATS = ["STR", "INT", "DEX"]
+PRIMARY_ALIASES = {"STATS": STATS}

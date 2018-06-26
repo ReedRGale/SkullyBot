@@ -21,6 +21,11 @@ HELP_BRIEF = "Try calling 'skully, help [command]'! Also, if you ever want to es
              "type 'nevermind, skully'."
 HELP_HELP = "Good work. That is exactly how you check the detailed help docs of a command."
 
+VIEW_BRIEF = "A command group for seeing information."
+VIEW_HELP = "This group is all about seeing information that I currently have stored!"
+
+VIEWSOUL_BRIEF = "This command allows users to see the status of a character!"
+VIEWSOUL_HELP = "This command allows users to see the status of a character!"
 
 ADDITEM_BRIEF = "This is how you should add a new item to the list of items we might try to combine!"
 ADDITEM_HELP = "To Call: 'skully, add item'\n\n" \
@@ -75,7 +80,12 @@ INF_TOP_LEVEL_COMMANDS = "Here's all the major command types. If you want to del
 INF_NO_CHARACTER_CREATION = "Got it! Let me know if you change your mind though!!"
 INF_NO_ADDED_SOULS = "Alright! Let me know if you need me to add souls in the future though!!"
 INF_NEW_SOUL_VALUE = "{} is now {} souls stronger! They have {} souls total, are level {} " \
-                     "now and {} souls until levelup!"
+                     "now and {} souls until levelup!\n\n"\
+                     "VIT: {} --> {}\nINT: {} --> {}\nDEX: {} --> {}\nSTR: {} --> {}"
+INF_SIMULATE_ADDSOUL = "\n\n...But! I could let you simulate a levelup to see how strong a character would get after " \
+                       "giving them a certain soul value. How about it?"
+INF_SUIT_YOURSELF = "Okidokie, Observer!! Sorry I can't do more... >...<"
+INF_CHARACTER_STATS = "**{}:**\n\nLevel:  {}\nSouls:  {}\nTo Next Level:  {}"
 
 ESCAPE = "I'll escape the command, but just because you asked nicely. ;>"
 TIMEOUT = "So, you've taken a bit to continue this command. So... call me back when you know what you want to " \
@@ -85,7 +95,14 @@ TIMEOUT = "So, you've taken a bit to continue this command. So... call me back w
 REPEAT_ITEM = "Alright then! Let's try working through this again! As many times as it takes! >...<"
 REPEAT_CONF = "I'm sorry, I didn't quite catch that!"
 
-ADDSOUL_PREVIEW = "Is this okay?\n\n {}:\n\n**Level:** {} --> {}\n**Souls:** {} --> {}\n**Next Level:** {} --> {}"
+REQ_OKAY = "Is this okay?\n\n"
+REQ_VIT = "What's the base vitality value?"
+REQ_INT = "What's the base intelligence value?"
+REQ_DEX = "What's the base dexterity value?"
+REQ_STR = "What's the base strength value?"
+REQ_PRIMARY = "What's the character's primary stat--the one they're best at? Valid Input: [INT, DEX, STR]"
+ADDSOUL_PREVIEW = " {}:\n\n**Level:** {} --> {}\n**Souls:** {} --> {}\n**To Next Level:** {}\n\n" \
+                  "VIT: {} --> {}\nINT: {} --> {}\nDEX: {} --> {}\nSTR: {} --> {}"
 
 
 # Confirmation #
@@ -117,6 +134,11 @@ FLD_PAGE = "page"
 FLD_EDTBL = "editable"
 FLD_NAME = "name"
 FLD_SOUL = "souls"
+FLD_VIT = "VIT"
+FLD_INT = "INT"
+FLD_DEX = "DEX"
+FLD_STR = "STR"
+FLD_PRIMARY = "primary"
 COMM_UNF = "unaffiliated"
 
 ITEMS_FN = "items"
@@ -164,6 +186,8 @@ ERR_NOT_YOURS = "Hey! This isn't yours!!!"
 ERR_INVALID_TIDYMODE = "Mr. Programmer, it looks like you gave me a TidyMode I don't know how to work with. " \
                        "And now, some user is probably going 'huh? what's that?' You only have yourself to blame " \
                        "now, Mr. Programmer. After all, you wrote this error code."
+ERR_NOT_INT = "Hey so, this is looking for numerical integer data. That's numbers without the " \
+              "'.' in them. i.e 1, 2, 3 and not 3.4, 1.23, etc. Try again please!"
 
 ERR_ADD_WHAT = "Observer... add what thing...? >...<"
 ERR_EDIT_WHAT = "Observer... edit what item...? >...<"
@@ -188,6 +212,12 @@ ERR_INEXACT_ARGS = "Noooot exactly. I'm looking for '{}' arg here. If you want t
                     " have two words in one word here, surround it with quotation marks like \"this is!\""
 ERR_INVALID_TM_CONTENT = "Mr. Programmer, somehow you've failed to give me a string or an Embed to show our lovely " \
                          "users. Tut tut. Get on that."
+ERR_INVALID_PERMISSIONS = "Uhm, so, this command is only allowed to be called by Panur, mA or ReedRGale (cC). Sorry!!"
+ERR_INVALID_ADDSOUL_ARGS = "I don't think you have the right amount of arguments here... I'm counting {}. " \
+                           "It should be 3..."
+ERR_VIEW_WHAT = "What do you want to see now?"
+
+ERR_WHO_NOW = "Who's now? ;...;"
 
 # File Paths #
                                                             # Formatting String Args:
